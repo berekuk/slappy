@@ -13,6 +13,8 @@ from slackclient import SlackClient
 
 from typing import List, Dict
 
+import slappy.helpers
+
 class ErrorResponse(Exception):
     pass
 
@@ -33,7 +35,7 @@ class Message:
     def reply(self, text, **kwargs):
         args = dict(**kwargs)
         args['text'] = text
-        args['channel'] = self.channel
+        args['channel'] = self.channel_id
         if 'thread_ts' in self.body:
             args['thread_ts'] = self.body['thread_ts']
 
@@ -42,14 +44,26 @@ class Message:
             raise Exception(str(result))
 
     @property
-    def channel(self):
+    def channel_id(self) -> str:
         return self.body['channel']
+
+    @property
+    def channel(self) -> slappy.helpers.Channel:
+        return slappy.helpers.get_channel(self.channel_id)
+
+    @property
+    def user_id(self) -> str:
+        return self.body['user']
+
+    @property
+    def user(self) -> slappy.helpers.User:
+        return slappy.helpers.get_user(self.user_id)
 
     def typing(self):
         return # not working anymore - can only be used on RTM API, but we use Events API now
 
-        found_channel = self.sc.server.channels.find(self.channel)
-        channel_id = found_channel.id if found_channel else self.channel
+        found_channel = self.sc.server.channels.find(self.channel_id)
+        channel_id = found_channel.id if found_channel else self.channel_id
 
         self.sc.api_call({
             'id': 1,
