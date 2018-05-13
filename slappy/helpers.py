@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import Dict
 
 class Channel:
@@ -15,6 +18,7 @@ class User:
 def get_channel(sc, channel_id: str) -> Channel:
     response = sc.api_call('channels.info', channel=channel_id)
     if not response['ok']:
+        logger.error(response)
         raise Exception(response['error'])
 
     return Channel(sc, response['channel'])
@@ -22,6 +26,7 @@ def get_channel(sc, channel_id: str) -> Channel:
 def get_user(sc, user_id: str) -> User:
     response = sc.api_call('users.info', user=user_id)
     if not response['ok']:
+        logger.error(response)
         raise Exception(response['error'])
 
-    return User(response['user'])
+    return User(sc, response['user'])

@@ -49,7 +49,11 @@ class Message:
 
     @property
     def channel(self) -> slappy.helpers.Channel:
-        return slappy.helpers.get_channel(self.channel_id)
+        channel_type = self.body['channel_type']
+        if channel_type == 'channel':
+            return slappy.helpers.get_channel(self.sc, self.channel_id)
+        else:
+            return # groups or other channel types not implemented yet
 
     @property
     def user_id(self) -> str:
@@ -57,7 +61,7 @@ class Message:
 
     @property
     def user(self) -> slappy.helpers.User:
-        return slappy.helpers.get_user(self.user_id)
+        return slappy.helpers.get_user(self.sc, self.user_id)
 
     def typing(self):
         return # not working anymore - can only be used on RTM API, but we use Events API now
@@ -72,17 +76,36 @@ class Message:
         })
 
 
+class Listener:
+    def __init__(self, regex, f, mention_only=False):
+        self.regex = regex
+        self.f = f
+        self.mention_only = mention_only
+
+    def match(self, text):
+        return re.match(self.regex, text, flags=re.IGNORECASE)
+
+    def process(self, msg, match):
+        args = (msg,) + match.groups() # type: ignore
+        result = self.f(*args)
+
+        if type(result) == str:
+            msg.reply(text=result)
+        elif type(result) == dict:
+            msg.reply(**result)
+        elif result:
+            raise Exception('Bad listener result: {}'.format(result))
+
+
 class Dispatcher:
-    def __init__(self):
+    def __init__(self, bot_id: str):
         self.listeners: List[Dict] = []
         self.actions: List[Dict] = []
         self.commands: List[Dict] = {}
+        self.bot_id = bot_id
 
-    def register_listener(self, regex, f):
-        self.listeners.append({
-            'regex': regex,
-            'f': f,
-        })
+    def register_listener(self, listener):
+        self.listeners.append(listener)
 
     def register_action(self, regex, f):
         self.actions.append({
@@ -112,24 +135,36 @@ class Dispatcher:
         if not msg.is_text_message():
             return
 
+        text = msg.body['text']
+
+        mentioned = False
+        mention_match = re.match(r'<@(\w+)>\,?\s*(.*)', msg.body['text'])
+        if mention_match:
+            (user_id, short_text) = mention_match.groups()
+            if user_id == self.bot_id:
+                mentioned = True
+                text = short_text
+        else:
+            text = msg.body['text']
+
+        direct = msg.body['channel_type'] == 'app_home'
+
         for listener in self.listeners:
-            match = re.match(listener['regex'], msg.body['text'], flags=re.IGNORECASE)
+            if listener.mention_only and (not mentioned and not direct):
+                continue
+
+            match = listener.match(text)
             if not match:
                 continue
+
             logger.debug(f"{msg.body['text']} matches {str(listener)}")
-            args = (msg,) + match.groups() # type: ignore
-            result = listener['f'](*args)
+            listener.process(msg, match)
 
-            if type(result) == str:
-                msg.reply(text=result)
-            elif type(result) == dict:
-                msg.reply(**result)
-            elif result:
-                raise Exception('Bad listener result: {}'.format(result))
-
-            return
+            return # one listener is enough
 
         logger.debug(f"{msg.body['text']} doesn't match anything")
+        if mentioned or direct:
+            msg.reply('Не понимаю.')
 
     def process_command(self, payload):
         command = payload['command']
@@ -140,8 +175,6 @@ class Dispatcher:
 
 class Bot:
     def __init__(self, port, workplace_token, verification_token, timezone=None):
-        self.dispatcher = Dispatcher()
-
         scheduler_options = {}
         if timezone:
             scheduler_options['timezone'] = timezone
@@ -153,8 +186,18 @@ class Bot:
             endpoint="/slack/events"
         )
 
+        self.bot_id = self.get_bot_id()
+        self.dispatcher = Dispatcher(self.bot_id)
+
         self.port = port
         self.verification_token = verification_token
+
+    def get_bot_id(self):
+        response = self.sc.api_call('users.identity')
+        if not response['ok']:
+            raise Exception(response['error'])
+
+        return response['user']['id']
 
     @property
     def flask_app(self):
@@ -163,7 +206,13 @@ class Bot:
     ### Decorators ###
     def listen_to(self, regex):
         def wrap(f):
-            self.dispatcher.register_listener(regex, f)
+            self.dispatcher.register_listener(Listener(regex, f))
+            return f
+        return wrap
+
+    def respond_to(self, regex):
+        def wrap(f):
+            self.dispatcher.register_listener(Listener(regex, f, mention_only=True))
             return f
         return wrap
 
@@ -216,7 +265,7 @@ class Bot:
         def act():
             payload = json.loads(request.form['payload'])
             if payload['token'] != self.verification_token:
-                raise Exception('nope')
+                raise Exception("Verification token doesn't match")
 
             try:
                 result = self.dispatcher.process_action(payload)
