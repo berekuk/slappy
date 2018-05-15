@@ -7,6 +7,10 @@ class Channel:
     def __init__(self, sc, data: Dict):
         self.data = data
 
+    @property
+    def channel_id(self):
+        return self.data['id']
+
 class User:
     def __init__(self, sc, data: Dict):
         self.data = data
@@ -30,3 +34,18 @@ def get_user(sc, user_id: str) -> User:
         raise Exception(response['error'])
 
     return User(sc, response['user'])
+
+def get_channel_by_name(sc, channel_name: str) -> Channel:
+    response = sc.api_call('channels.list')
+    if not response['ok']:
+        logger.error(response)
+        raise Exception(response['error'])
+
+    channel_info = next(
+        (c for c in response['channels'] if c['name'] == channel_name),
+        None
+    )
+    if not channel_info:
+        raise Exception(f"Channel {channel_name} not found")
+
+    return Channel(sc, channel_info)

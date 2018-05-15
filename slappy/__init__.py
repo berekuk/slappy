@@ -3,6 +3,7 @@ logger = logging.getLogger(__name__)
 
 import re
 import json
+import traceback
 
 from flask import request, jsonify
 
@@ -42,6 +43,16 @@ class Message:
         result = self.sc.api_call('chat.postMessage', **args)
         if not result['ok']:
             raise Exception(str(result))
+
+    def react(self, emoji):
+        result = self.sc.api_call(
+            'reactions.add',
+            name=emoji,
+            channel=self.channel_id,
+            timestamp=self.body['ts'],
+        )
+        if not result['ok']:
+            raise Exception(result['error'])
 
     @property
     def channel_id(self) -> str:
@@ -255,6 +266,7 @@ class Bot:
         try:
             self.dispatcher.process_message(msg)
         except Exception as e:
+            traceback.print_exc()
             self.cleanup_on_exception()
             msg.reply('Что-то пошло не так: ```{}```'.format(str(e)))
 
