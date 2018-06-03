@@ -109,10 +109,11 @@ class Listener:
 
 
 class Dispatcher:
-    def __init__(self, bot_id: str):
+    def __init__(self, bot_id: str, alt_names: List[str] = []):
         self.listeners: List[Dict] = []
         self.actions: List[Dict] = []
         self.commands: List[Dict] = {}
+        self.alt_names = alt_names
         self.bot_id = bot_id
 
     def register_listener(self, listener):
@@ -142,21 +143,30 @@ class Dispatcher:
 
         raise Exception('unknown action')
 
+    def parse_mention(self, text: str) -> (bool, str):
+        mention_match = re.match(r'<@(\w+)>,?\s*(.*)', text)
+        if mention_match:
+            (user_id, short_text) = mention_match.groups()
+            if user_id == self.bot_id:
+                return (True, short_text)
+
+        if self.alt_names:
+            alt_names_regex = '|'.join([re.escape(name) for name in self.alt_names])
+            regex = '(?:' + alt_names_regex + ')' + r',\s*(.*)'
+            mention_match = re.match(regex, text, flags=re.IGNORECASE)
+            if mention_match:
+                text = mention_match.group(1)
+                return (True, text)
+
+        return (False, text)
+
     def process_message(self, msg):
         if not msg.is_text_message():
             return
 
         text = msg.body['text']
 
-        mentioned = False
-        mention_match = re.match(r'<@(\w+)>\,?\s*(.*)', msg.body['text'])
-        if mention_match:
-            (user_id, short_text) = mention_match.groups()
-            if user_id == self.bot_id:
-                mentioned = True
-                text = short_text
-        else:
-            text = msg.body['text']
+        (mentioned, text) = self.parse_mention(text)
 
         direct = msg.body['channel_type'] == 'app_home'
 
@@ -185,7 +195,7 @@ class Dispatcher:
         return self.commands[command]['f'](payload)
 
 class Bot:
-    def __init__(self, port, workplace_token, verification_token, timezone=None):
+    def __init__(self, port, workplace_token, verification_token, timezone=None, alt_names=[]):
         scheduler_options = {}
         if timezone:
             scheduler_options['timezone'] = timezone
@@ -197,11 +207,12 @@ class Bot:
             endpoint="/slack/events"
         )
 
-        self.bot_id = self.get_bot_id()
-        self.dispatcher = Dispatcher(self.bot_id)
-
         self.port = port
         self.verification_token = verification_token
+        self.alt_names = alt_names
+
+        self.bot_id = self.get_bot_id()
+        self.dispatcher = Dispatcher(self.bot_id, self.alt_names)
 
     def get_bot_id(self):
         response = self.sc.api_call('users.identity')
