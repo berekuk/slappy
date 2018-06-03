@@ -1,9 +1,14 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='slappy',
     description='Slack bot framework',
-    version='0.2.0',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    version='0.2.1',
     url='https://github.com/berekuk/slappy',
     python_requires='>=3.6',
     author='Vyacheslav Matyukhin',
