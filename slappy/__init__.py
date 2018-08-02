@@ -282,6 +282,7 @@ class Bot:
         msg = Message(msg, self.sc)
         try:
             self.dispatcher.process_message(msg)
+            self.cleanup_on_anything()
         except Exception as e:
             traceback.print_exc()
             self.cleanup_on_exception()
@@ -298,9 +299,13 @@ class Bot:
 
             try:
                 result = self.dispatcher.process_action(payload)
+                self.cleanup_on_anything()
             except:
                 self.cleanup_on_exception()
                 raise
+
+            if not result:
+                return ''
 
             return jsonify(result)
 
@@ -312,6 +317,7 @@ class Bot:
 
             try:
                 result = self.dispatcher.process_command(payload)
+                self.cleanup_on_anything()
             except Exception as e:
                 self.cleanup_on_exception()
                 return 'Что-то пошло не так: ```{}```'.format(str(e))
@@ -331,6 +337,11 @@ class Bot:
 
         self.slack_events_adapter.start(port=self.port)
 
-    # override this method to remove sqlalchemy sessions etc.
+    # override this method to remove sqlalchemy sessions etc. after exceptions
     def cleanup_on_exception(self):
+        pass
+
+    # override this method to remove sqlalchemy sessions etc. after a normal action
+    # (I'm having issues even though I'm using Flask-SQLAlchemy for some reason)
+    def cleanup_on_anything(self):
         pass
