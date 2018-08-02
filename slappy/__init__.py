@@ -249,6 +249,7 @@ class Bot:
             def job(*args, **kwargs):
                 try:
                     f(*args, **kwargs)
+                    self.cleanup_on_anything()
                 except:
                     self.cleanup_on_exception()
                     raise
