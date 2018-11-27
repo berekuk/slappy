@@ -8,7 +8,7 @@ setup(
     description='Slack bot framework',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version='0.3.4',
+    version='0.3.5',
     url='https://github.com/berekuk/slappy',
     python_requires='>=3.6',
     author='Vyacheslav Matyukhin',

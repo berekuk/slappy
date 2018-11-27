@@ -11,6 +11,11 @@ class Channel:
     def channel_id(self):
         return self.data['id']
 
+    @property
+    def name(self) -> str:
+        return self.data['name']
+
+
 class User:
     def __init__(self, sc, data: Dict):
         self.data = data
@@ -18,6 +23,7 @@ class User:
     @property
     def name(self) -> str:
         return self.data['name']
+
 
 def get_channel(sc, channel_id: str) -> Channel:
     response = sc.api_call('channels.info', channel=channel_id)
@@ -27,6 +33,7 @@ def get_channel(sc, channel_id: str) -> Channel:
 
     return Channel(sc, response['channel'])
 
+
 def get_user(sc, user_id: str) -> User:
     response = sc.api_call('users.info', user=user_id)
     if not response['ok']:
@@ -34,6 +41,7 @@ def get_user(sc, user_id: str) -> User:
         raise Exception(response['error'])
 
     return User(sc, response['user'])
+
 
 def get_channel_by_name(sc, channel_name: str) -> Channel:
     response = sc.api_call('channels.list')
