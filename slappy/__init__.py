@@ -195,7 +195,7 @@ class Dispatcher:
         return self.commands[command]['f'](payload)
 
 class Bot:
-    def __init__(self, port, workplace_token, verification_token, timezone=None, alt_names=[]):
+    def __init__(self, port, workplace_token, signing_secret, timezone=None, alt_names=[]):
         scheduler_options = {}
         if timezone:
             scheduler_options['timezone'] = timezone
@@ -203,12 +203,11 @@ class Bot:
 
         self.sc = SlackClient(workplace_token)
         self.slack_events_adapter = SlackEventAdapter(
-            verification_token,
+            signing_secret,
             endpoint="/slack/events"
         )
 
         self.port = port
-        self.verification_token = verification_token
         self.alt_names = alt_names
 
         self.bot_id = self.get_bot_id()
@@ -295,8 +294,6 @@ class Bot:
         @self.slack_events_adapter.server.route('/slack/action', methods=['POST'])
         def act():
             payload = json.loads(request.form['payload'])
-            if payload['token'] != self.verification_token:
-                raise Exception("Verification token doesn't match")
 
             try:
                 result = self.dispatcher.process_action(payload)
@@ -313,8 +310,6 @@ class Bot:
         @self.slack_events_adapter.server.route('/slack/command', methods=['POST'])
         def command():
             payload = request.form
-            if payload['token'] != self.verification_token:
-                raise Exception('nope')
 
             try:
                 result = self.dispatcher.process_command(payload)
