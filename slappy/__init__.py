@@ -195,7 +195,7 @@ class Dispatcher:
         return self.commands[command]['f'](payload)
 
 class Bot:
-    def __init__(self, port, workplace_token, signing_secret, timezone=None, alt_names=[]):
+    def __init__(self, workplace_token, signing_secret, timezone=None, alt_names=[]):
         scheduler_options = {}
         if timezone:
             scheduler_options['timezone'] = timezone
@@ -207,7 +207,6 @@ class Bot:
             endpoint="/slack/events"
         )
 
-        self.port = port
         self.alt_names = alt_names
 
         self.bot_id = self.get_bot_id()
@@ -288,10 +287,10 @@ class Bot:
             self.cleanup_on_exception()
             msg.reply('Что-то пошло не так: ```{}```'.format(str(e)))
 
-    def run(self):
+    def run(self, host='127.0.0.1', port=None):
         self.scheduler.start()
 
-        @self.slack_events_adapter.server.route('/slack/action', methods=['POST'])
+        @self.flask_app.route('/slack/action', methods=['POST'])
         def act():
             payload = json.loads(request.form['payload'])
 
@@ -307,7 +306,7 @@ class Bot:
 
             return jsonify(result)
 
-        @self.slack_events_adapter.server.route('/slack/command', methods=['POST'])
+        @self.flask_app.route('/slack/command', methods=['POST'])
         def command():
             payload = request.form
 
@@ -331,7 +330,7 @@ class Bot:
 
             self.process_message(event['event'])
 
-        self.slack_events_adapter.start(port=self.port)
+        self.slack_events_adapter.start(host=host, port=port)
 
     # override this method to remove sqlalchemy sessions etc. after exceptions
     def cleanup_on_exception(self):
