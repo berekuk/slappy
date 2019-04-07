@@ -16,8 +16,10 @@ from typing import List, Dict
 
 import slappy.helpers
 
+
 class ErrorResponse(Exception):
     pass
+
 
 class Message:
     def __init__(self, body, sc):
@@ -64,7 +66,7 @@ class Message:
         if channel_type == 'channel':
             return slappy.helpers.get_channel(self.sc, self.channel_id)
         else:
-            return # groups or other channel types not implemented yet
+            return  # groups or other channel types not implemented yet
 
     @property
     def user_id(self) -> str:
@@ -75,7 +77,7 @@ class Message:
         return slappy.helpers.get_user(self.sc, self.user_id)
 
     def typing(self):
-        return # not working anymore - can only be used on RTM API, but we use Events API now
+        return  # not working anymore - can only be used on RTM API, but we use Events API now
 
         found_channel = self.sc.server.channels.find(self.channel_id)
         channel_id = found_channel.id if found_channel else self.channel_id
@@ -97,7 +99,7 @@ class Listener:
         return re.match(self.regex, text, flags=re.IGNORECASE)
 
     def process(self, msg, match):
-        args = (msg,) + match.groups() # type: ignore
+        args = (msg,) + match.groups()  # type: ignore
         result = self.f(*args)
 
         if type(result) == str:
@@ -138,8 +140,11 @@ class Dispatcher:
             if not match:
                 continue
 
-            args = (payload,) + match.groups() # type: ignore # (for some reason typing.py defines groups() as Sequence, not Tuple)
-            return action['f'](*args) # any action which listens for a route should process it (note that it's different with listeners)
+            # (for some reason typing.py defines groups() as Sequence, not Tuple)
+            args = (payload,) + match.groups()  # type: ignore
+
+            # any action which listens for a route should process it (note that it's different with listeners)
+            return action['f'](*args)
 
         raise Exception('unknown action')
 
@@ -181,7 +186,7 @@ class Dispatcher:
             logger.debug(f"{msg.body['text']} matches {str(listener)}")
             listener.process(msg, match)
 
-            return # one listener is enough
+            return  # one listener is enough
 
         logger.debug(f"{msg.body['text']} doesn't match anything")
         if mentioned or direct:
@@ -193,6 +198,7 @@ class Dispatcher:
             raise Exception('Command {} not found'.format(command))
 
         return self.commands[command]['f'](payload)
+
 
 class Bot:
     def __init__(self, workplace_token, signing_secret, timezone=None, alt_names=[]):
@@ -222,7 +228,7 @@ class Bot:
     def flask_app(self):
         return self.slack_events_adapter.server
 
-    ### Decorators ###
+    # Decorators
     def listen_to(self, regex):
         def wrap(f):
             self.dispatcher.register_listener(Listener(regex, f))
@@ -241,7 +247,7 @@ class Bot:
                 try:
                     f(*args, **kwargs)
                     self.cleanup_on_anything()
-                except:
+                except Exception:
                     self.cleanup_on_exception()
                     raise
 
@@ -259,14 +265,13 @@ class Bot:
             return f
         return wrap
 
-    ### Public helper methods ###
+    # Public helper methods
     def send_message(self, **kwargs):
         result = self.sc.api_call('chat.postMessage', **kwargs)
         if not result['ok']:
             raise Exception(str(result))
 
-
-    ### Run and internal methods ###
+    # Run and internal methods
     def process_message(self, msg):
         if 'bot_id' in msg:
             return
@@ -290,7 +295,7 @@ class Bot:
             try:
                 result = self.dispatcher.process_action(payload)
                 self.cleanup_on_anything()
-            except:
+            except Exception:
                 self.cleanup_on_exception()
                 raise
 
