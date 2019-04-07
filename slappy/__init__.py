@@ -213,17 +213,11 @@ class Bot:
         self.dispatcher = Dispatcher(self.bot_id, self.alt_names)
 
     def get_bot_id(self):
-        response = self.sc.api_call('users.profile.get')
+        response = self.sc.api_call('auth.test')
         if not response['ok']:
             raise Exception(response['error'])
 
-        bot_id = response['profile']['bot_id']
-        response = self.sc.api_call('bots.info', bot=bot_id)
-        if not response['ok']:
-            raise Exception(response['error'])
-
-        bot_user_id = response['bot']['user_id']
-        return bot_user_id
+        return response['user_id']
 
     @property
     def flask_app(self):
