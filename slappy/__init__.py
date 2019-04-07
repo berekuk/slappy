@@ -173,7 +173,7 @@ class Dispatcher:
 
         (mentioned, text) = self.parse_mention(text)
 
-        direct = msg.body['channel_type'] == 'app_home'
+        direct = msg.body['channel_type'] == 'im'
 
         for listener in self.listeners:
             if listener.mention_only and (not mentioned and not direct):
