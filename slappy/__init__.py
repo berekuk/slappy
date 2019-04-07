@@ -325,6 +325,7 @@ class Bot:
 
         @self.slack_events_adapter.on("message")
         def on_event(event):
+            logger.debug(event['event'])
             if request.headers.get('X-Slack-Retry-Reason') == 'http_timeout':
                 logger.warning('Got a retry request because of timeout')
                 return
