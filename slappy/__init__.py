@@ -201,13 +201,16 @@ class Dispatcher:
 
 
 class Bot:
-    def __init__(self, workplace_token, signing_secret, timezone=None, alt_names=[]):
+    def __init__(self, bot_token, signing_secret, timezone=None, alt_names=[]):
         scheduler_options = {}
         if timezone:
             scheduler_options['timezone'] = timezone
         self.scheduler = BackgroundScheduler(**scheduler_options)
 
-        self.sc = SlackClient(workplace_token)
+        if not bot_token.startswith('xoxb-'):
+            raise Exception("slappy >= 0.5 supports bot tokens only, you provided: " + bot_token[:5])
+
+        self.sc = SlackClient(bot_token)
         self.slack_events_adapter = SlackEventAdapter(
             signing_secret,
             endpoint="/slack/events"
